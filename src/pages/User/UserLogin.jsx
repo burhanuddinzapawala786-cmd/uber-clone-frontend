@@ -63,14 +63,8 @@ const UserLogin = () => {
         setErrorMessage('Unexpected response from the server.');
         setErrorType('login');
    }
- } catch (err) {
-   if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
-     setErrorMessage('Please check your internet connection and try again.');
-     setErrorType('network');
-   } else {
-     setErrorMessage(err.response?.data?.message || 'Invalid email or password.');
-     setErrorType('login');
-   }
+ }catch (err) {
+   console.log( "err from login" , err)
  }
 }}>
         <div className="mt-10 space-y-5">
