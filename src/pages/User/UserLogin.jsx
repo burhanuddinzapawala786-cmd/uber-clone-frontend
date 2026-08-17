@@ -7,8 +7,6 @@ import LoginFailed from "../../Error/LoginFailed";
 import NoNetwork from "../../Error/NoNetwork";
 
 const UserLogin = () => {
-
-  
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [errorMessage, setErrorMessage] = useState('');

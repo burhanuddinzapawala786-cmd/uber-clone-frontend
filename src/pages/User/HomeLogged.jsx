@@ -28,36 +28,7 @@ const socket = io(socketBaseUrl);
 const HomeLogged = () => {
 const {userdata} = useContext(UserContextGlobal)
 
-if(userdata.email == 'user1@gmail.com'){
-  socket.emit('live-location' , {
-  latitude : 19.9786,
-    id:userdata._id,
-  longitude :  73.7915
-  })
-}
-if(userdata.email == 'user2@gmail.com'){
-   socket.emit('live-location' , {
-    id:userdata._id,
-  latitude : 19.0760,
-  longitude :72.8777
-  })
-}
-if(userdata.email == 'user3@gmail.com'){
-  socket.emit('live-location' , {
-  latitude : 22.7196,
-    id:userdata._id,
-  longitude :75.8577
-  })
-}
 
-
-
-  useEffect(() => {
-  socket.emit('join' , {
-    userType:'user',
-    userId:userdata._id
-  })
-  }, [userdata._id])
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [fareData, setfareData] = useState(null);
@@ -88,10 +59,53 @@ const [destLong, setdestLong] = useState(null)
 const [waitingForDriver, setwaitingForDriver] = useState(false)
 const [rideError, setRideError] = useState('');
 const [rideErrorType, setRideErrorType] = useState('');
+const [otp, setotp] = useState(null);
 
+
+
+  useEffect(() => {
+    if (!userdata?.email) return;
+
+    if (userdata.email == 'user1@gmail.com') {
+      setCurrlatitude(19.9786);
+      setCurrlongitude(73.7915);
+    }
+    else if (userdata.email == 'user2@gmail.com') {
+      setCurrlatitude(19.0760);
+      setCurrlongitude(72.8777);
+    }
+    else if (userdata.email == 'user3@gmail.com') {
+      setCurrlatitude(22.7196);
+      setCurrlongitude(75.8577);
+    }
+  }, [userdata?.email , currlatitude , currlongitude]);
+
+
+
+
+
+
+  useEffect(() => {
+    if (!userdata?._id) return;
+
+    socket.emit('join' , {
+      userType:'user',
+      userId: userdata._id,
+      long:currlongitude,
+      lat:currlatitude
+    })
+  }, [userdata?._id , currlatitude , currlongitude])
 const clearRideError = () => {
   setRideErrorType('');
   setRideError('');
+};
+
+const resetRideUiState = () => {
+  setrideData(null);
+  setcaptainData(null);
+  setShowLookingForDriver(false);
+  setwaitingForDriver(false);
+  setconfirmRidePanel(false);
 };
 
 
@@ -100,13 +114,6 @@ const clearRideError = () => {
 
 
 
-useEffect(() => {
-   socket.on('userLocServer' , (data) => {
-    console.log("lat from user is :" , data.latitude)
-  setCurrlatitude(data.latitude);
-  setCurrlongitude(data.longitude);
-})
-}, [currlatitude,currlongitude])
 
   const [selectedFare, setselectedFare] = useState(null)
   useEffect(() => {
@@ -317,11 +324,10 @@ const coords =  latAndLongOfPickup.data.coordinates;
       destination:destination,
       fare:selectedFare,
       vehicleType:vehicleType,
-      otp:response.data.newRide.otp,
       rideId:response.data.newRide._id,
       userId:userdata._id,
+      otp: response.data.newRide.otp,
       status:'pending',
-
       cords:{
         pickupLat:coords[1],
         pickupLong:coords[0],
@@ -330,6 +336,7 @@ const coords =  latAndLongOfPickup.data.coordinates;
       }
     }
     socket.emit('new-ride' , newRide)
+    setrideData(newRide)
 
 
         setconfirmRidePanel(false);
@@ -350,12 +357,58 @@ const coords =  latAndLongOfPickup.data.coordinates;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-    socket.on('ride-accepted' , (data) => {
-  setrideData(data.rideData)
-  setcaptainData(data.captaindata)
-  setShowLookingForDriver(false)
-  setwaitingForDriver(true)
-})
+
+
+ 
+  socket.on('ride-arrived', (data) => {
+
+  })
+
+  socket.on('ride-confirmed', (data) => {
+    const rideInfo = data?.rideData || data || {};
+    const safeOtp = rideInfo?.otp ?? data?.otp ?? null;
+
+    console.log("ride otp" , safeOtp)
+    setotp(safeOtp)
+    setrideData(rideInfo)
+    setcaptainData(data?.captaindata || null)
+    setShowLookingForDriver(false)
+    setwaitingForDriver(true)
+  })
+
+  socket.on('no-captains-available', (data) => {
+    setRideErrorType('nodriver');
+    setRideError(data?.message || 'No captain accepted your ride in time. Please try again.');
+    setrideData(null);
+    setcaptainData(null);
+    setShowLookingForDriver(false);
+    setconfirmRidePanel(true);
+  })
+
+  socket.on('ride-expired', (data) => {
+      resetRideUiState();
+    setRideErrorType('nodriver');
+    setRideError(data?.message || 'This ride expired. Please try again.');
+    setRideError(true)
+
+    setrideData(null);
+    setcaptainData(null);
+    setShowLookingForDriver(false);
+    setconfirmRidePanel(true);
+  })
+
+  socket.on('ride-cancelled', (data) => {
+            setRideErrorType('rideCancelled');
+            setRideError('Ride Was Cancelled , we are looking for another captain');
+            setrideData(null);
+            setcaptainData(null);
+            setconfirmRidePanel(false);
+            resetRideUiState();
+  })
+
+   
+ 
+
 
 function finishRideByUser(){
   setwaitingForDriver(false)
@@ -384,23 +437,35 @@ useEffect(() => {
           setrideData(ride);
 
           switch (ride.status) {
-            case "initialapprovalPending":
-              console.log("waitng for driver page??")
+            case "pending":
               setShowLookingForDriver(true)
+              setwaitingForDriver(false)
               break;
-
+            case "accepted":
+              setwaitingForDriver(true)
+            break;
+            case "arrived":
             case "ongoing":
-                
+              setShowLookingForDriver(false)
+              setwaitingForDriver(true)
               break;
-
+            case "completed":
+            case "cancelled":
+              resetRideUiState();
+              break;
             default:
+              resetRideUiState();
               break;
           }
         }
       } catch (err) {
-       console.error("checkCurrentRide error:", err.response ? { status: err.response.status, data: err.response.data } : err.message);
-       setRideErrorType('network');
-       setRideError('We could not refresh your ride state. Please try again.');
+        if (err.response?.status === 404) {
+          resetRideUiState();
+        } else {
+          console.error("checkCurrentRide error:", err.response ? { status: err.response.status, data: err.response.data } : err.message);
+          setRideErrorType('network');
+          setRideError('We could not refresh your ride state. Please try again.');
+        }
       }
     }
 
@@ -565,7 +630,7 @@ useEffect(() => {
       )}
            {waitingForDriver && (
     <div className="absolute bottom-0 left-0 z-50 w-full">
-        <USERCaptainComing data = {{rideData , captainData , finishRideByUser}}/>
+        <USERCaptainComing data = {{rideData , captainData , finishRideByUser }}  otp = {otp}/>
     </div>
 )}
       {/* Vehicle Bottom Sheet */}

@@ -23,14 +23,15 @@ const socketBaseUrl = (import.meta.env.VITE_SOCKET_URL || apiBaseUrl || "http://
 const socket = io(socketBaseUrl);
 
 const CaptainHome = () => {
-    const [captainTypedOtp, setcaptainTypedOtp] = useState(null);
+  const [captainTypedOtp, setcaptainTypedOtp] = useState(null);
   const [rideData, setrideData] = useState({});
   const { captaindata } = useContext(CaptainContextGlobal);
   const [captainRiding, setcaptainRiding] = useState(false);
-
 //MAP: 
+ 
 const [currLat, setcurrLat] = useState(null);
 const [currLong, setcurrLong] = useState(null);
+
 
 const [pickupLat, setpickupLat] = useState(null);
 const [pickupLong, setpickupLong] = useState(null);
@@ -44,47 +45,107 @@ const [destLong] = useState(null);
   const [captainError, setCaptainError] = useState('');
   const [captainErrorType, setCaptainErrorType] = useState('');
 
+  
+
   const clearCaptainError = () => {
     setCaptainErrorType('');
     setCaptainError('');
   };
 
+  const resetRideUiState = () => {
+    setrideData(null);
+    setcaptainRiding(false);
+    setridePopUpPanel(false);
+    setacceptRideByCaptainPanel(false);
+    setinitialPanel(true);
+  };
+
+
   useEffect(() => {
-    if (!captaindata) return; // wait until captain data is available
+    if (!captaindata) return;
+
+    if (captaindata.email === "captain1@gmail.com") {
+       setcurrLat(19.9785);
+       setcurrLong(73.7909);
+    }
+
+    else if (captaindata.email === "captain2@gmail.com") {
+        setcurrLat(19.9725);
+        setcurrLong(73.7975);
+        }
+
+   else  if (captaindata.email === "captain3@gmail.com") {
+      setcurrLat(19.9845);
+      setcurrLong(73.7867);
+    }
+  }, [captaindata?.email]);
+
+  useEffect(() => {
+    if (!captaindata) return;
+    if (currLat == null || currLong == null) return;
 
     socket.emit("join", {
       userId: captaindata._id,
       userType: "captain",
+      long: currLong,
+      lat: currLat,
     });
+  }, [captaindata, currLat, currLong]);
 
-    if (captaindata.email === "captain1@gmail.com") {
-      socket.emit("update-location", {
-        latitude: 19.9902,
-        longitude: 73.7894,
-      });
-    }
 
-    if (captaindata.email === "captain2@gmail.com") {
-      socket.emit("update-location", {
-        latitude: 20.0056,
-        longitude: 73.7486,
-      });
-    }
 
-    if (captaindata.email === "captain3@gmail.com") {
-      socket.emit("update-location", {
-        latitude: 19.0760,
-        longitude: 72.8777,
-      });
-    }
 
-    socket.on('currLocFromServerCap', (data) => {
-      setcurrLat(data.latitude);
-      setcurrLong(data.longitude);
-    });
 
+
+
+
+
+
+ const handleNewRide = (data) => {
+      console.log("CAPTAIN PAGE:", data);
+      setinitialPanel(false);
+      setridePopUpPanel(true);
+      setrideData(data);
+      setpickupLat(data.cords.pickupLat);
+      setpickupLong(data.cords.pickupLong);
+      console.log(data);
+    };
+
+    const handleRideExpired = (data) => {
+      resetRideUiState();
+      setCaptainErrorType('ride');
+      setCaptainError(data?.message || 'This ride expired. Please try again.');
+    };
+
+    const handleRideTaken = (data) => {
+      resetRideUiState();
+      setCaptainErrorType('ride');
+      setCaptainError(data?.message || 'This ride was already taken by another captain.');
+    };
+
+    socket.on("new-ride", handleNewRide);
+    socket.on("ride-expired", handleRideExpired);
+    socket.on("ride-taken", handleRideTaken);
+
+
+
+
+  
+  useEffect(() => {
+    if (!captaindata) return;
+
+
+
+
+     checkCurrentRide();
+
+   
+
+   
     async function checkCurrentRide() {
       try {
+
+        
         const token = localStorage.getItem("token");
         const response = await axios.get(`${apiBaseUrl}/ride/current-ride/captain`, {
           headers: {
@@ -94,73 +155,75 @@ const [destLong] = useState(null);
             captainId:captaindata._id
           }
         });
-
-        console.log("checkCurrentRide response:", response && response.status, response && response.data);
-
+console.log("response : " , response)
 
         if (response && response.status === 200) {
           const ride = response.data.ride;
           setrideData(ride);
           console.log(ride)
           switch (ride.status) {
-            case "initialapprovalPending":
+            case "pending":
               setridePopUpPanel(true)
               setinitialPanel(false)
-              break;
-            case "ongoing":
-              setcaptainRiding(true);
+              setcaptainRiding(false)
               break;
             case "accepted":
+              setridePopUpPanel(false)
               setcaptainRiding(true)
+
+              setinitialPanel(false)
               break;
-            case "rejected":
-              setcaptainRiding(false);
-              setinitialPanel(true)
+          
+            case "ongoing":
+              setcaptainRiding(true)
+              setridePopUpPanel(false)
+              setacceptRideByCaptainPanel(false)
+              setinitialPanel(false)
+              break;
+      
+            case "cancelled":
+              resetRideUiState();
               break;
             default:
+              resetRideUiState();
               break;
           }
         }
       } catch (err) {
-       console.error("checkCurrentRide error:", err.response ? { status: err.response.status, data: err.response.data } : err.message);
+        if (err.response?.status === 404) {
+          resetRideUiState();
+        } else {
+          console.error("checkCurrentRide error:", err.response ? { status: err.response.status, data: err.response.data } : err.message);
+        }
       }
     }
 
-    checkCurrentRide();
+   
+  }, [captaindata?._id]);
 
-    // listen for new rides
-    socket.on("new-ride", (data) => {
-      console.log("CAPTAIN PAGE:", data);
-      setinitialPanel(false);
-      setridePopUpPanel(true);
-      setrideData(data);
-      setpickupLat(data.cords.pickupLat);
-      setpickupLong(data.cords.pickupLong);
-      console.log(data);
-    });
+  
 
-    return () => {
-      socket.off('currLocFromServerCap');
-      socket.off('new-ride');
-    };
-  }, [captaindata]);
-
+////////////////////////////////////
+//////////////////////////////
+/////////////////////////////////
   function rideAcceptByCaptain() {
     setridePopUpPanel(false);
-    setacceptRideByCaptainPanel(true);
-    
+    setcaptainRiding(true);
+     socket.emit("ride-accepted", {
+        captaindata,
+        rideData: { ...rideData, status: "accepted" }
+      });
   }
 
   //////////////////////////////////////////////////////////////////////////////
   function rideBookedCaptain() {
     if (captainTypedOtp === rideData.otp) {
+console.log("ride from captain" , rideData)
+
       setacceptRideByCaptainPanel(false);
       setinitialPanel(false);
       setcaptainRiding(true);
-      socket.emit("ride-accepted", {
-      captaindata,
-      rideData,
-    });
+      
     } else {
       setCaptainErrorType('nodriver');
       setCaptainError('The OTP does not match. Please check the code and try again.');
@@ -172,11 +235,20 @@ function rideCancelledByCaptain() {
   console.log("ride rejected by captain")
   setridePopUpPanel(false);
   setinitialPanel(true)
-  socket.emit('ride-rejected' , rideData);
+  socket.emit('ride-cancelled', { rideData, captaindata });
 }
 
 
+function hasArrived() {
+  socket.emit('ride-arrived', { rideData, captaindata });
+  setacceptRideByCaptainPanel(true);
+}
 
+function rideCancelled() {
+      socket.emit('ride-cancelled', { rideData, captaindata });
+      setcaptainRiding(false);
+      setinitialPanel(true);
+}
   return (
     <div className="h-screen w-full relative overflow-hidden">
 
@@ -189,11 +261,13 @@ function rideCancelledByCaptain() {
           Uber
         </h1>
 
-        <div className="w-9 h-9 rounded-full bg-black/95 flex items-center justify-center shadow-sm">
-          <LogOut 
-          onClick={() => {
+        <div
+        onClick={() => {
             localStorage.removeItem('token')
           }}
+        className="w-9 h-9 rounded-full bg-black/95 flex items-center justify-center shadow-sm">
+          <LogOut 
+          
           className="w-4.5 h-4.5 text-white" />
         </div>
       </div>
@@ -369,11 +443,15 @@ function rideCancelledByCaptain() {
         </div>
       )}
 
-      {captainRiding && <CaptainPickupSheet rideData={rideData}/>}
+      {captainRiding && <CaptainPickupSheet 
+      rideCancelled = {rideCancelled}
+      hasArrived={hasArrived}
+      rideData={rideData}/>}
 
       {ridePopUpPanel && (
         <RidePopup
           rideData={rideData}
+          
           rideRejected={rideCancelledByCaptain}
           handleConfirmPopUp={rideAcceptByCaptain}
         />
@@ -389,6 +467,9 @@ function rideCancelledByCaptain() {
           />
         </div>
       )}
+
+
+
     </div>
   );
 };

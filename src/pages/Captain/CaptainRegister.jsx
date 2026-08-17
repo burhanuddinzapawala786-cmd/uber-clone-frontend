@@ -70,6 +70,7 @@ const [errorType, setErrorType] = useState('');
  try {
    const response = await axios.post(`${import.meta.env.VITE_BASE_URL}captain/register` , captain);
    const data = response.data;
+   console.log(response)
    if(response.status===200){
         localStorage.setItem('token' , data.token)
         setcaptaindata(data.captain);
@@ -83,10 +84,16 @@ const [errorType, setErrorType] = useState('');
         setErrorType('register');
    }
  } catch (err) {
+  
+
+
    if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
      setErrorMessage('Please check your internet connection and try again.');
      setErrorType('network');
    } else {
+ 
+
+
      setErrorMessage(err.response?.data?.message || 'Please complete every field before registering.');
      setErrorType('register');
    }

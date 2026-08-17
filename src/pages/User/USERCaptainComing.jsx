@@ -1,11 +1,34 @@
 import React from 'react'
-import { MapPin, Wallet } from "lucide-react";
-const USERCaptainComing = ({data}) => {
+import { MapPin, Wallet, ShieldCheck } from "lucide-react";
+const USERCaptainComing = ({data , otp}) => {
+
+  {console.log("ride data from:      " , data)}
   return (
         <div className="w-full bg-white rounded-t-2xl px-5 pt-3 pb-6">
 
       {/* Drag handle */}
       <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-4"></div>
+
+      {/* OTP */}
+      <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={16} className="text-gray-400" />
+          <p className="text-[13px] text-gray-500">Share OTP with driver</p>
+        </div>
+
+        <div className="flex gap-1.5">
+          {String(otp ?? "----").split("").map((digit, i) => (
+            <div
+              key={i}
+              className="w-7 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[16px] font-semibold text-gray-950"
+            >
+              {digit}
+            </div>
+          ))}
+        </div>
+
+      </div>
 
       {/* Driver Info */}
       <div className="flex items-center justify-between pb-4 border-b border-gray-100">

@@ -4,10 +4,19 @@ import {
   ArrowUp,
   CornerLeftUp,
   CornerRightUp,
+  Check,
+  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import gsap from 'gsap'
-const CaptainPickupSheet = ({openPanel , closePanel , panelRef , panelState , rideData}) => {
+const CaptainPickupSheet = ({openPanel ,
+   hasArrived,
+     closePanel ,
+      panelRef ,
+       panelState ,
+       rideCancelled,
+       rideData}) => {
+
 
   return (
     <div 
@@ -52,7 +61,7 @@ onClick={() => {
 
       {/* Ride Details */}
 
-      <div className="grid grid-cols-3 text-center px-5 py-3.5 border-b border-gray-100">
+      <div className="grid grid-cols-3 text-center px-5 py-3.5 border-b border-gray-300">
 
         <div>
           <p className="text-[11px] text-gray-500 uppercase tracking-wide">
@@ -64,7 +73,7 @@ onClick={() => {
           </h3>
         </div>
 
-        <div className="border-x border-gray-100">
+        <div className="border-x border-gray-400">
           <p className="text-[11px] text-gray-500 uppercase tracking-wide">
             Distance
           </p>
@@ -86,15 +95,29 @@ onClick={() => {
 
       </div>
 
-      {/* Drop Button */}
+      {/* Action Buttons — "I'm here" primary, "Cancel Ride" secondary */}
 
-      <div className="px-5 py-3.5">
+      <div className="px-5 py-3 flex items-center gap-2.5">
 
-        <button className="w-full bg-gray-950 hover:bg-black active:scale-[0.98] transition text-white rounded-xl py-3.5 text-[15px] font-medium">
-          Complete ride
-        </button>
+  <button
+    onClick={() => {
+       hasArrived();
+    }}
+    className="flex-1 flex items-center justify-center gap-2 bg-gray-950 hover:bg-black active:scale-[0.98] transition text-white rounded-xl py-3.5 text-[15px] font-medium"
+  >
+    <MapPinned size={17} strokeWidth={2.2} />
+    I'm here
+  </button>
 
-      </div>
+  <button
+  onClick={rideCancelled}
+  className="flex items-center justify-center gap-1.5 bg-white hover:bg-gray-50 active:scale-[0.98] transition text-gray-950 rounded-xl py-3.5 px-4 text-[14px] font-medium border border-gray-400 shrink-0">
+    <X size={16} strokeWidth={2.2} />
+    
+    Cancel
+  </button>
+
+</div>
 
       {/* Directions */}
 
